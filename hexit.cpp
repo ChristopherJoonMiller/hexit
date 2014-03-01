@@ -1,12 +1,12 @@
 /******************************\
-
-hexit.cpp
-140224
-
-HexIt is a command line hex
-viewer and editor.
-
-\******************************/
+ 
+ hexit.cpp
+ 140224
+ 
+ HexIt is a command line hex
+ viewer and editor.
+ 
+ \******************************/
 
 #include "hexit.h"
 
@@ -42,7 +42,7 @@ viewer and editor.
 #define INPUT_KEY_0				0x0
 #define INPUT_KEY_1				0x1
 #define INPUT_KEY_2				0x2
-#define INPUT_KEY_3				0x3	
+#define INPUT_KEY_3				0x3
 #define INPUT_KEY_4				0x4
 #define INPUT_KEY_5				0x5
 #define INPUT_KEY_6				0x6
@@ -73,7 +73,7 @@ const char HEX_NIBBLE[0x10] =
 
 uint g_column_pos[0x10] =
 {
-	 0,  2,  5,  7,
+     0,  2,  5,  7,
 	10, 12, 15, 17,
 	20, 22, 25, 27,
 	30, 32, 35, 37
@@ -89,7 +89,7 @@ HexIt::HexIt()
 ,	m_uWidth(80)
 ,	m_uFilePos(0)
 {
-
+    
 }
 
 HexIt::HexIt(fstream* file)
@@ -101,12 +101,12 @@ HexIt::HexIt(fstream* file)
 ,	m_uFilePos(0)
 {
 	m_pFile = file;
-
+    
 	// detect file size!
 	if( file )
 	{
 		file->seekg(0, ios::end);
-		m_uFileSize = file->tellg();
+		m_uFileSize = (uint)file->tellg();
 		file->seekg(0, ios::beg);
 	}
 }
@@ -131,12 +131,12 @@ void HexIt::print(ostream& output)
 	if( m_pFile && m_pFile->is_open() )
 	{
 		m_pFile->seekg(0, ios::beg);
-
+        
 		char c[READ_BUFFER_BYTES+1] = {0}; // grab 16 bytes at a time, add 1 to store terminating null
 		uint i;
 		uint size = 0;
 		uint bytes_read = READ_BUFFER_BYTES;
-
+        
 		// We need to check if we read all the bytes because we're manually
 		// adding the file's stop byte to the sequence. If the number of bytes
 		// is aligned to 16 byte width, it wouldn't print the stop byte
@@ -146,12 +146,12 @@ void HexIt::print(ostream& output)
 			
 			if( !m_pFile->eof() ) // keep going!
 			{
-				size  = m_pFile->tellg();
+				size  = (uint)m_pFile->tellg();
 				m_pFile->read(c,READ_BUFFER_BYTES);
-
-				bytes_read = m_pFile->gcount();		// see how much we actually got
+                
+				bytes_read = (uint)m_pFile->gcount();		// see how much we actually got
 				size += bytes_read;
-
+                
 				if( bytes_read < READ_BUFFER_BYTES )
 				{
 					c[bytes_read] = 0x0a;
@@ -164,36 +164,36 @@ void HexIt::print(ostream& output)
 				bytes_read = 1; // fake stop byte
 				c[0] = 0x0a;
 			}
-
+            
 			renderLine(output, i<<4, c, bytes_read);
 			
 		}
-		output << endl << "bytes: [ 0x" << getCaseFunction() << hex << size << " : " << dec << size << " ]" << endl;	
-	}	
+		output << endl << "bytes: [ 0x" << getCaseFunction() << hex << size << " : " << dec << size << " ]" << endl;
+	}
 }
 
 void HexIt::editMode()
 {
 	initNCurses();
-
+    
 	int rows, columns;
 	getmaxyx(stdscr, rows, columns);
-
+    
 	//cout << "screen dimensions: " << rows << "x" << columns << endl;
-
+    
 	setTerminalSize(rows, columns);
-
+    
 	// we're editing so set running flag!
 	m_bRunning = true;
-
+    
 	if( m_pFile && m_pFile->is_open() )
 	{
 		// initialize edit state
 		m_bBufferDirty = false;
-
+        
 		m_pFile->seekg(0, ios::beg);
 		m_uFilePos = 0;
-
+        
 	    m_buffer << m_pFile->rdbuf();
 	    m_buffer.seekg(0, ios::beg);
 		// load the screen up with data!
@@ -201,20 +201,20 @@ void HexIt::editMode()
 		{
 			// reset cursor position
 			move(0,0); // render from the top!
-
+            
 			stringstream screenBuffer;
 			renderScreen(screenBuffer);
-
+            
 			// output screen to ncurses
 			addstr(screenBuffer.str().c_str());
-
+            
 			// set cursor position
 			setCursorPos();
-
+            
 			// accept input
 			int ch = getch();
-
-
+            
+            
 			switch(ch)
 			{
 				case 'q':
@@ -225,7 +225,7 @@ void HexIt::editMode()
 						moveCursor(0,1<<4);
 					break;
 				case KEY_UP:
-					if(!m_cursor.editing)				
+					if(!m_cursor.editing)
 						moveCursor(0,-1<<4);
 					break;
 				case KEY_LEFT:
@@ -247,8 +247,8 @@ void HexIt::editMode()
 				case 27: // escape
 					toggleEdit(false);
 					break;
-
-				// Editing Keys
+                    
+                    // Editing Keys
 				case '0':
 					editKey(0x0);
 					break;
@@ -306,7 +306,7 @@ void HexIt::editMode()
 			}
 		}
 	}
-
+    
 	cleanup();
 }
 
@@ -332,7 +332,7 @@ case_fptr HexIt::getCaseFunction()
 // 			hexword << hex << setw(2) << setfill('0') << (byte_data & 0xFF);
 // 			hexword.read(&first,1);
 // 			hexword.read(&second,1);
-			
+
 // 			// byte pos is == to m_cursor.word, or m_cursor.word+1
 // 			if( byte_pos == m_cursor.word ) // editing this byte
 // 			{
@@ -369,7 +369,7 @@ case_fptr HexIt::getCaseFunction()
 // 		{
 // 			text << g_colors[TEXT_COLOR_HIGHLIGHT] << setw(2) << setfill('0') << (byte_data & 0xFF) << g_colors[TEXT_COLOR_STANDARD];
 // 		}
-		
+
 // 	}
 // 	else
 // 	{
@@ -384,26 +384,28 @@ void HexIt::renderLine(ostream& output, uint start_byte, char* byte_seq, uint by
 	// put hex byte count to start the row
 	// todo, predictively set the width of the row header
 	output << hex << getCaseFunction() << setw(7) << setfill('0') << start_byte << ": ";
-
+    
 	// output each byte
-	for(int j = 0; j < (uint)READ_BUFFER_BYTES; j++)
+	for(uint j = 0; j < (uint)READ_BUFFER_BYTES; j++)
 	{
 		if(!(j&1)) // every even byte index put a seperator
 		{
 			output << " ";
 		}
-
+        
 		// each byte will print 2 (padded) hex chars
 		if(j < bytes_read)
 		{
 			char toWrite = byte_seq[j];
-
-			// test if we're editing this byte, if so use the edit word instead
-			// 11 10 01 00 account for the nibble bytes
-			if( m_cursor.editing && (m_cursor.word + (m_cursor.nibble >> 1) == start_byte + j) )
+            
+			// test if we're editing this word, if so use the edit word instead
+			// remove the last bit from j so that both bytes we're editing are replaced
+			if( m_cursor.editing &&
+               m_cursor.word == ( start_byte + (j & (0xFFFE) ) )
+               )
 			{
-				// pull out individual bytes
-				toWrite = ((char*)&m_cursor.editWord)[j & 0x3];
+				// pull out individual byte
+				toWrite = ((m_cursor.editWord >> ((1-(j&1))*8)) & 0xFF);
 			}
 			output << hex << getCaseFunction() << setw(2) << setfill('0') << (toWrite & 0xFF);
 		}
@@ -412,7 +414,7 @@ void HexIt::renderLine(ostream& output, uint start_byte, char* byte_seq, uint by
 			output << "  ";			// blank if not read
 			byte_seq[j] = ' ';		// blank if not read
 		}
-
+        
 		// adjust ascii for control chars or anything out of bounds
 		if(byte_seq[j] < ASCII_MIN || byte_seq[j] > ASCII_MAX)
 		{
@@ -428,12 +430,12 @@ void HexIt::renderScreen(ostream& output)
 {
 	char c[READ_BUFFER_BYTES+1] = {0}; // grab 16 bytes at a time, add 1 to store terminating null
 	uint bytes_read = READ_BUFFER_BYTES;
-
+    
 	//for( uint byte = m_uFilePos; byte <= m_uFileSize; byte += 16)
 	for( uint line = 0; line < m_uHeight; line++)
 	{
 		uint byte = m_uFilePos + line * 16;
-
+        
 		if( byte < m_uFileSize )
 		{
 			m_buffer.seekg(byte, ios::beg);
@@ -442,8 +444,8 @@ void HexIt::renderScreen(ostream& output)
 			if( !m_buffer.eof() ) // keep going!
 			{
 				m_buffer.read(c,READ_BUFFER_BYTES);
-				bytes_read = m_buffer.gcount();		// see how much we actually got
-
+				bytes_read = (uint)m_buffer.gcount();		// see how much we actually got
+                
 				if( bytes_read < READ_BUFFER_BYTES )
 				{
 					c[bytes_read] = 0x0a;
@@ -461,7 +463,7 @@ void HexIt::renderScreen(ostream& output)
 		{
 			output << endl;
 		}
-
+        
 		
 	}
 }
@@ -477,11 +479,11 @@ void HexIt::setCursorPos()
 {
 	// calculate the row and column by comparing m_uFilePos and m_cursor.word
 	assert(m_cursor.word >= m_uFilePos);
-
+    
 	uint nibble = (m_cursor.editing ? m_cursor.nibble : 0);
 	uint row = getCursorRow();
 	uint col = COLUMN_POS(getCursorColumn()) + nibble;
-
+    
 	move(row, col);
 	//move(0,0);
 }
@@ -497,7 +499,7 @@ uint HexIt::getCursorRow()
 
 uint HexIt::getCursorColumn()
 {
-
+    
 	uint offset = m_cursor.word - m_uFilePos;
 	uint column = offset & 0xF;
 	
@@ -540,7 +542,7 @@ void HexIt::moveCursor(int x, int y)
 		}
 		m_cursor.word += x;
 	}
-
+    
 	if(y < 0)
 	{
 		if( newY >= 0 )
@@ -566,38 +568,39 @@ void HexIt::toggleEdit(bool save)
 	{
 		// initiating an edit, save the current word;
 		m_cursor.backup = 0;
-
+        
 		// reset to the first nibble
 		m_cursor.nibble = 0;
-
+        
 		// because bytes are read one at a time into "chars"
 		// don't read the bytes directly into m_cursor.backup
 		char read_buf[WORD_SIZE];
-
+        
 		m_buffer.seekg(m_cursor.word, ios::beg);
 		m_buffer.read(read_buf,WORD_SIZE); // read 4 nibbles, or 2 bytes
-
+        
 		// store the two bytes back into a word inside the lower 16 bytes in m_cursor.backup
 		// throw away the 16 most sig bits.
 		m_cursor.backup = (((read_buf[0] & 0xFF) << 8) | (read_buf[1] & 0xFF)) & 0xFFFF;
 		m_buffer.seekg(m_uFilePos);
-
+        
 		// initialize the edit word to be the same as what's in the edit buffer
 		m_cursor.editWord = m_cursor.backup;
-
+        
 	}
 	else // we are ending an edit
 	{
 		// don't bother if we didn't change anything
 		if( m_cursor.backup != m_cursor.editWord )
 		{
-			m_buffer.seekg(m_cursor.word, ios::beg);
-			wchar_t restore = ( save ? m_cursor.editWord : m_cursor.backup ) & 0xFFFF;
-			m_buffer.write((char*)&restore,WORD_SIZE);
+            std::stringbuf *pbuf = m_buffer.rdbuf();
+            if( pbuf->pubseekpos(m_cursor.word) == m_cursor.word )
+            {
+                // if we pressed escape or something reset the word
+                uint16_t restore = ( save ? m_cursor.editWord : m_cursor.backup ) & 0xFFFF;
+                pbuf->sputn((char*)&restore,WORD_SIZE);
+            }
 		}
-		// if we pressed escape or something reset the word
-		
-
 	}
 	m_cursor.editing = !m_cursor.editing;
 }
@@ -609,19 +612,19 @@ void HexIt::editKey(uint nibble)
 	{
 		toggleEdit(false);
 	}
-
+    
 	// to put the new nibble in place, first clear all bits
 	uint mask = NIBBLE_MASK(m_cursor.nibble);
 	m_cursor.editWord &= ~mask;
-
+    
 	// then |= with the nibble itself.
 	uint shift = NIBBLE_SHIFT(m_cursor.nibble);
 	m_cursor.editWord |= (nibble << shift);
-
+    
 	// advance the nibble pointer
 	m_cursor.nibble++;
 	m_cursor.nibble &= 0x3; // % 4
-
+    
 	// print the last input nibble to the dirty screen
 	addch(HEX_NIBBLE[nibble]);
 }
@@ -641,7 +644,7 @@ void HexIt::cleanup()
 	for(uint y = 0; y < m_uHeight; y++)
 		for(uint x = 0; x < m_uWidth; x++)
 			addch(' ');
-		addch('\n');
+    addch('\n');
 	endwin();
 }
 
@@ -661,19 +664,19 @@ void usage()
 int main(int argc, char *argv[])
 {
 	
-
+    
 	uint switches = 0;
 	string output_fn;
-
+    
 	cout << endl << "HexIt" << " v0.1" << endl << endl;
-
+    
 	if(argc <= 1)
 	{
 		
 		usage();
 		return 0;
 	}
-
+    
 	// parse switches
 	for(int i = 2; i < argc; i++)
 	{
@@ -703,15 +706,15 @@ int main(int argc, char *argv[])
 		}
 		
 	}
-
+    
 	cout << "Opening file: " << argv[1] << endl << endl;
-
+    
 	// open the file as read/write
 	fstream file;
 	file.open(argv[1]);
-
+    
 	HexIt h(&file);
-
+    
 	// Does the user want uppercase letters?
 	h.setPrintCase(switches & SWITCH_UPPER);
 	
@@ -719,7 +722,7 @@ int main(int argc, char *argv[])
 	if( switches & SWITCH_EDIT )
 	{
 		h.editMode();
-
+        
 		// check if we need to save anything
 	}
 	else // output to a stream
@@ -737,7 +740,7 @@ int main(int argc, char *argv[])
 			h.print(cout);	
 		}
 	}
-
+    
 	return 0;
 }
 
