@@ -7,10 +7,10 @@ LDLIBS = -lcurses
 EXE = hexit
 
 hexit: $(OBJS)
-	$(CC) $(LFLAGS) $(LDLIBS) -o $(EXE) $(OBJS)
+	$(CC) $(DEBUG) $(LFLAGS) $(LDLIBS) -o $(EXE) $(OBJS)
 
 hexit.o: hexit.cpp hexit.h
-	$(CC) $(CFLAGS) hexit.cpp
+	$(CC) $(DEBUG) $(CFLAGS) hexit.cpp
 
 clean:
 	rm *.o hexit

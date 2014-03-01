@@ -27,13 +27,13 @@ typedef ios_base& (*case_fptr) (ios_base& str);
 struct Cursor
 {
 	uint word;		// start byte count of the word that we're editing (2 bytes), will never be odd
-	uint nibble;	// which nibble are we editing? 0-3
+	uint nibble;	// which nibble are we editing? 0-3, most sig nibble is 0, least is 3
 	bool editing;	// currently editing
 	
 	uint backup;	// a backup of a word we're currently editing;
-	uint editByte;	// read in 4 nibbles while editing
+	uint editWord;	// read in 4 nibbles while editing
 
-	Cursor() : word(0), nibble(0), editing(false), backup(0), editByte(0) {};
+	Cursor() : word(0), nibble(0), editing(false), backup(0), editWord(0) {};
 	void SetPos(uint _word, uint _nibble=0) { word = _word; nibble = _nibble; }
 };
 
@@ -67,12 +67,19 @@ public:
 	uint getCursorColumn();
 	void checkCursorOffscreen();
 	void moveCursor(int x, int y);									// this sets up directional input
+	void moveNibble(int x);
+	
+	// Editing of the file
 	void toggleEdit(bool save=true);
-
+	void editKey(uint nibble);										// user input of hex nibbles
+	void insertWord(uint start_byte, uint data);
+	void updateWord(uint start_byte, uint data);
+	
 private:
 	fstream* m_pFile; // file handle
-	stringstream m_buffer; // hold the entire file in memory!
-	bool m_bRunning;	// should we quit exit mode?
+	stringstream m_buffer;	// hold the entire file in memory!
+	bool m_bRunning;		// should we quit exit mode?
+	bool m_bBufferDirty;	// have we edited the buffer and needs a save
 	bool m_bPrintUpper;
 	uint m_uHeight;
 	uint m_uWidth;
