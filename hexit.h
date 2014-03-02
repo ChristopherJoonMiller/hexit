@@ -53,12 +53,12 @@ public:
 
 	// render one line of output!
 	void renderLine(ostream& output, uint start_byte, char* byte_seq, uint bytes_read);
-	void renderScreen(ostream& output);		 						// render the entire screen buffer!
+	void renderScreen();		 						// render the entire screen buffer!
 	void setPrintCase(bool upper)
 		{ m_bPrintUpper = upper; }
 	bool getPrintCase()	
 		{ return m_bPrintUpper; }
-	//string textColor(uint byte_pos, char byte_data);	 			// set color of cursor byte to be red
+	void textColor(uint byte_pos, char byte_data);	 			// set color of cursor byte to be red
 	void setTerminalSize(uint rows, uint columns)
 		{ m_uHeight = rows; m_uWidth = columns;}
 	void setCursorPos(uint _word, uint _nibble=0);
@@ -88,6 +88,7 @@ private:
 	uint m_uFileSize;	// how many bytes is the total file (not including stop byte);
 
     // settings, being greedy with unique bools for each one
+    bool m_bShowColor;
     bool m_bPrintUpper;
     bool m_bShowByteCount;
     bool m_bShowASCII;

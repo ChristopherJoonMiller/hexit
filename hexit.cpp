@@ -28,14 +28,6 @@
 #define NIBBLE_SHIFT(x)			((0x3 - x)<<2)			 // 0-3 * 4
 #define NIBBLE_MASK(x)			(0xF << NIBBLE_SHIFT(x)) // invert nibble count
 
-#define TEXT_COLOR_STANDARD		0
-#define TEXT_COLOR_GREEN		1
-#define TEXT_COLOR_RED			2
-#define TEXT_COLOR_COUNT		3
-
-#define TEXT_COLOR_HIGHLIGHT	TEXT_COLOR_GREEN
-#define TEXT_COLOR_EDIT			TEXT_COLOR_RED
-
 #define MORE_SIG_BYTE(x)		(x<<4);
 #define LESS_SIG_BYTE(x)		(x>>4);
 
@@ -56,12 +48,9 @@
 #define INPUT_KEY_E				0xE
 #define INPUT_KEY_F				0xF
 
-const char* g_colors[TEXT_COLOR_COUNT] =
-{
-	"\033[0m",
-	"\033[1;32m",
-	"\033[1;31m"
-};
+#define COLOR_STANDARD			1
+#define COLOR_HIGHLIGHT			2
+#define COLOR_EDIT				3
 
 const char HEX_NIBBLE[0x10] =
 {
@@ -87,8 +76,9 @@ HexIt::HexIt()
 ,	m_uHeight(40)
 ,	m_uWidth(80)
 ,	m_uFilePos(0)
+,	m_bShowColor(false)
 ,	m_bPrintUpper(false)
-,	m_bShowByteCount(0)
+,	m_bShowByteCount(true)
 ,	m_bShowASCII(0)
 ,	m_uInsertWord(0)
 {
@@ -101,8 +91,9 @@ HexIt::HexIt(fstream* file)
 ,	m_uHeight(40)
 ,	m_uWidth(80)
 ,	m_uFilePos(0)
+,	m_bShowColor(false)
 ,	m_bPrintUpper(false)
-,	m_bShowByteCount(0)
+,	m_bShowByteCount(true)
 ,	m_bShowASCII(0)
 ,	m_uInsertWord(0)
 {
@@ -208,11 +199,7 @@ void HexIt::editMode()
 			// reset cursor position
 			move(0,0); // render from the top!
             
-			stringstream screenBuffer;
-			renderScreen(screenBuffer);
-            
-			// output screen to ncurses
-			addstr(screenBuffer.str().c_str());
+			renderScreen();
             
 			// set cursor position
 			setCursorPos();
@@ -321,69 +308,43 @@ case_fptr HexIt::getCaseFunction()
 	return (m_bPrintUpper ? uppercase : nouppercase );
 }
 
-// string HexIt::textColor(uint byte_pos, char byte_data)
-// {
-// 	stringstream text;
-// 	text << hex;
+void HexIt::textColor(uint byte_pos, char byte_data)
+{
+	stringstream text;
+	text << hex;
 
-// 	// determine if we're at the cursor byte
-// 	if( byte_pos - m_cursor.word <= 1 )
-// 	{
-// 		if( m_cursor.editing )
-// 		{
-// 			char first;
-// 			char second;
+	if( !m_bShowColor )
+	{
+		text << setw(2) << setfill('0') << (byte_data & 0xFF);
+		addstr(text.str().c_str());
+		return;
+	}
 
-// 			stringstream hexword;
-// 			hexword << hex << setw(2) << setfill('0') << (byte_data & 0xFF);
-// 			hexword.read(&first,1);
-// 			hexword.read(&second,1);
+	// determine if we're at the cursor byte
+	if( (byte_pos & 0xFFFFFFFE) == m_cursor.word )
+	{
+		if( m_cursor.editing )
+		{
+			text << setw(2) << setfill('0') << (byte_data & 0xFF);
+			attron(COLOR_PAIR(COLOR_EDIT));
+			addstr(text.str().c_str());					
+			attroff(COLOR_PAIR(COLOR_EDIT));
+		}
+		else
+		{
+			text << setw(2) << setfill('0') << (byte_data & 0xFF);
+			attron(COLOR_PAIR(COLOR_HIGHLIGHT));
+			addstr(text.str().c_str());
+			attroff(COLOR_PAIR(COLOR_HIGHLIGHT));
+		}
 
-// 			// byte pos is == to m_cursor.word, or m_cursor.word+1
-// 			if( byte_pos == m_cursor.word ) // editing this byte
-// 			{
-// 				if(m_cursor.nibble == 0)
-// 				{
-// 					text << g_colors[TEXT_COLOR_EDIT] << first << g_colors[TEXT_COLOR_HIGHLIGHT] << second;
-// 				}
-// 				else if(m_cursor.nibble == 1)
-// 				{
-// 					text << g_colors[TEXT_COLOR_HIGHLIGHT] << first << g_colors[TEXT_COLOR_EDIT] << second;
-// 				}
-// 				else
-// 				{
-// 					text << g_colors[TEXT_COLOR_HIGHLIGHT] << first << second;
-// 				}
-// 			}
-// 			else
-// 			{
-// 				if(m_cursor.nibble == 2)
-// 				{
-// 					text << g_colors[TEXT_COLOR_EDIT] << first << g_colors[TEXT_COLOR_HIGHLIGHT] << second;
-// 				}
-// 				else if(m_cursor.nibble == 3)
-// 				{
-// 					text << g_colors[TEXT_COLOR_EDIT] << first << g_colors[TEXT_COLOR_HIGHLIGHT] << second;
-// 				}
-// 				else
-// 				{
-// 					text << g_colors[TEXT_COLOR_HIGHLIGHT] << first << second;
-// 				}
-// 			}
-// 		}
-// 		else
-// 		{
-// 			text << g_colors[TEXT_COLOR_HIGHLIGHT] << setw(2) << setfill('0') << (byte_data & 0xFF) << g_colors[TEXT_COLOR_STANDARD];
-// 		}
-
-// 	}
-// 	else
-// 	{
-// 		text << g_colors[TEXT_COLOR_STANDARD] << setw(2) << setfill('0') << (byte_data & 0xFF);
-// 	}
-// 	text << g_colors[TEXT_COLOR_STANDARD];
-// 	return text.str();
-// }
+	}
+	else
+	{
+		text << setw(2) << setfill('0') << (byte_data & 0xFF);
+		addstr(text.str().c_str());
+	}
+}
 
 void HexIt::renderLine(ostream& output, uint start_byte, char* byte_seq, uint bytes_read)
 {
@@ -432,11 +393,11 @@ void HexIt::renderLine(ostream& output, uint start_byte, char* byte_seq, uint by
 	output << endl;
 }
 
-void HexIt::renderScreen(ostream& output)
+void HexIt::renderScreen()
 {
 	char c[READ_BUFFER_BYTES+1] = {0}; // grab 16 bytes at a time, add 1 to store terminating null
 	uint bytes_read = READ_BUFFER_BYTES;
-    
+
 	//for( uint byte = m_uFilePos; byte <= m_uFileSize; byte += 16)
 	for( uint line = 0; line < m_uHeight; line++)
 	{
@@ -463,14 +424,69 @@ void HexIt::renderScreen(ostream& output)
 				bytes_read = 1; // fake stop byte
 				c[0] = 0x0a;
 			}
-			renderLine(output, byte, &c[0], bytes_read);
+			
+			//renderLine(output, byte, &c[0], bytes_read);
+			stringstream output;
+			
+
+			if(m_bShowByteCount) 
+			{
+				output << hex << getCaseFunction() << setw(7) << setfill('0') << byte << ": ";
+    			addstr(output.str().c_str());
+    			output.str("");
+    		}
+
+			// output each byte
+		
+			for(uint j = 0; j < (uint)READ_BUFFER_BYTES; j++)
+			{
+				if(!(j&1)) // every even byte index put a seperator
+				{
+					addch(' ');
+				}
+		        
+				// each byte will print 2 (padded) hex chars
+				if(j < bytes_read)
+				{
+					char toWrite = c[j];
+		            
+					// test if we're editing this word, if so use the edit word instead
+					// remove the last bit from j so that both bytes we're editing are replaced
+					if( m_cursor.editing &&
+		               m_cursor.word == ( byte + (j & (0xFFFE) ) )
+		               )
+					{
+						// pull out individual byte
+						toWrite = ((m_cursor.editWord >> ((1-(j&1))*8)) & 0xFF);
+					}
+					//output << hex << getCaseFunction() << setw(2) << setfill('0') << (toWrite & 0xFF);
+					//addstr(output.str().c_str());
+					//output.str("");
+					textColor(byte+j, toWrite);
+				}
+				else
+				{
+					//output << "  ";			// blank if not read
+					addch(' '); addch(' ');
+					c[j] = ' ';		// blank if not read
+				}
+		        
+				// adjust ascii for control chars or anything out of bounds
+				if(c[j] < ASCII_MIN || c[j] > ASCII_MAX)
+				{
+					c[j] = '.';
+				}
+			}
+			
+			output << "  ; " << c << " ;"; // output ascii straight onto the end!
+			output << endl;
+			addstr(output.str().c_str());
+			output.str("");
 		}
 		else
 		{
-			output << endl;
+			addch('\n');
 		}
-        
-		
 	}
 }
 
@@ -643,6 +659,30 @@ void HexIt::initNCurses()
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
+
+	if(has_colors())
+	{
+		m_bShowColor = true;
+		start_color();
+
+		// init your color pairs! FG, BG
+
+		/*
+			ncurses colors
+		        COLOR_BLACK   0
+		        COLOR_RED     1
+		        COLOR_GREEN   2
+		        COLOR_YELLOW  3
+		        COLOR_BLUE    4
+		        COLOR_MAGENTA 5
+		        COLOR_CYAN    6
+		        COLOR_WHITE   7
+		*/
+        
+		init_pair(COLOR_STANDARD,		COLOR_WHITE,		COLOR_BLACK);
+		init_pair(COLOR_HIGHLIGHT,		COLOR_BLACK,		COLOR_WHITE);
+		init_pair(COLOR_EDIT,			COLOR_RED,			COLOR_WHITE);
+	}
 }
 
 void HexIt::cleanup()
