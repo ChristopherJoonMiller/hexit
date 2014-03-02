@@ -68,7 +68,8 @@ public:
 	void checkCursorOffscreen();
 	void moveCursor(int x, int y);									// this sets up directional input
 	void moveNibble(int x);
-	
+	uint maxFilePos();												// don't let the user scroll past the end
+
 	// Editing of the file
 	void toggleEdit(bool save=true);
 	void editKey(uint nibble);										// user input of hex nibbles
@@ -80,12 +81,19 @@ private:
 	stringstream m_buffer;	// hold the entire file in memory!
 	bool m_bRunning;		// should we quit exit mode?
 	bool m_bBufferDirty;	// have we edited the buffer and needs a save
-	bool m_bPrintUpper;
+
 	uint m_uHeight;
 	uint m_uWidth;
-	uint m_uFilePos;	// how many bytes into the file is the top left corner of the screen?
+	uint m_uFilePos;	// how many bytes into the file is the top left corner of the screen? i.e. 16 byte aligned
 	uint m_uFileSize;	// how many bytes is the total file (not including stop byte);
 
+    // settings, being greedy with unique bools for each one
+    bool m_bPrintUpper;
+    bool m_bShowByteCount;
+    bool m_bShowASCII;
+    uint m_uInsertWord;
+    
+    
 	vector<string> m_pScreenBuffer;	// output this buffer to the screen when in edit mode.
 
 	Cursor m_cursor;

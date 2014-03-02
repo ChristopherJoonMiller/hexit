@@ -84,10 +84,10 @@ HexIt::HexIt()
 :	m_pFile(NULL)
 ,	m_bRunning(false)
 ,	m_bBufferDirty(false)
-,	m_bPrintUpper(false)
 ,	m_uHeight(40)
 ,	m_uWidth(80)
 ,	m_uFilePos(0)
+,	m_bPrintUpper(false)
 {
     
 }
@@ -95,10 +95,10 @@ HexIt::HexIt()
 HexIt::HexIt(fstream* file)
 :	m_bRunning(false)
 ,	m_bBufferDirty(false)
-,	m_bPrintUpper(false)
 ,	m_uHeight(40)
 ,	m_uWidth(80)
 ,	m_uFilePos(0)
+,	m_bPrintUpper(false)
 {
 	m_pFile = file;
     
@@ -510,11 +510,11 @@ void HexIt::checkCursorOffscreen()
 {
 	while(m_cursor.word > m_uFilePos + (m_uHeight<<4))
 	{
-		m_uFilePos += 16;
+		m_uFilePos = min( m_uFilePos + 0x10, maxFilePos());
 	}
 	while(m_cursor.word < m_uFilePos)
 	{
-		m_uFilePos -= 16;
+		m_uFilePos = (m_uFilePos >= 0x10 ? m_uFilePos - 0x10 : 0);
 	}
 }
 
@@ -523,41 +523,37 @@ void HexIt::moveNibble(int x)
 	m_cursor.nibble = (m_cursor.nibble + x) & 0x3;
 }
 
+uint HexIt::maxFilePos()
+{
+	// take the file size and align it to 16 bytes to get
+	// the start of the the last byte's 16 byte sequence
+	uint start_byte = m_uFileSize & ~(0xF);
+
+	// now subtract the number of 16 byte rows in the buffer from a
+	// full screen's buffer or end of the file's start_byte, whichever is larger
+	start_byte = max(start_byte, m_uHeight<<4) - (m_uHeight << 4);
+
+	return start_byte;
+}
+
 void HexIt::moveCursor(int x, int y)
 {
 	int newX = m_cursor.word + x;
 	int newY = m_cursor.word + y;
-	if(x < 0)
+	// don't allow someone to scroll past the end until a word is inserted
+	if( (x < 0 && newX >= 0) ||
+	    (x > 0 && newX < m_uFileSize) )
 	{
-		if( newX >= 0 )
-		{
-			m_cursor.word += x;
-		}
+		m_cursor.word = newX;
 	}
-	else if (x > 0)
-	{
-		if( newX > m_uFileSize )
-		{
-			// increase file size now!
-		}
-		m_cursor.word += x;
-	}
+	
     
-	if(y < 0)
-	{
-		if( newY >= 0 )
-		{
-			m_cursor.word += y;
-		}
+	if( (y < 0 && newY >= 0) ||
+	    (y > 0 && newY < (m_uFileSize & 0xFFFFFF0)) )
+    {
+		m_cursor.word = newY;
 	}
-	else if (y > 0)
-	{
-		if( newY > m_uFileSize )
-		{
-			// increase file size now!
-		}
-		m_cursor.word += y;
-	}
+
 	checkCursorOffscreen();
 	setCursorPos();
 }
