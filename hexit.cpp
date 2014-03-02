@@ -285,23 +285,23 @@ void HexIt::editMode()
 					break;
 				case 'b':
 				case 'B':
-					editKey(0xA);
+					editKey(0xB);
 					break;
 				case 'c':
 				case 'C':
-					editKey(0xA);
+					editKey(0xC);
 					break;
 				case 'd':
 				case 'D':
-					editKey(0xA);
+					editKey(0xD);
 					break;
 				case 'e':
 				case 'E':
-					editKey(0xA);
+					editKey(0xE);
 					break;
 				case 'f':
 				case 'F':
-					editKey(0xA);
+					editKey(0xF);
 					break;
 			}
 		}
@@ -598,8 +598,14 @@ void HexIt::toggleEdit(bool save)
             {
                 // if we pressed escape or something reset the word
                 uint16_t restore = ( save ? m_cursor.editWord : m_cursor.backup ) & 0xFFFF;
-                pbuf->sputn((char*)&restore,WORD_SIZE);
+                // because we're putting chars and not 16 bytes at once we need to reverse
+                // the order we write them to maintain endianness
+                pbuf->sputc(((char*)&restore)[1]);
+                pbuf->sputc(((char*)&restore)[0]);
             }
+            
+            // whether we hit escape or not let's count this as an edit
+            m_bBufferDirty = true;
 		}
 	}
 	m_cursor.editing = !m_cursor.editing;
