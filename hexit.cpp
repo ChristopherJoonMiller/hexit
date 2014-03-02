@@ -88,6 +88,9 @@ HexIt::HexIt()
 ,	m_uWidth(80)
 ,	m_uFilePos(0)
 ,	m_bPrintUpper(false)
+,	m_bShowByteCount(0)
+,	m_bShowASCII(0)
+,	m_uInsertWord(0)
 {
     
 }
@@ -99,6 +102,9 @@ HexIt::HexIt(fstream* file)
 ,	m_uWidth(80)
 ,	m_uFilePos(0)
 ,	m_bPrintUpper(false)
+,	m_bShowByteCount(0)
+,	m_bShowASCII(0)
+,	m_uInsertWord(0)
 {
 	m_pFile = file;
     
