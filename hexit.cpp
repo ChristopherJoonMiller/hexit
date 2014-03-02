@@ -14,6 +14,7 @@
 
 #define READ_BUFFER_BYTES		16
 #define WORD_SIZE				 2
+#define ROW_SIZE				16
 
 #define ASCII_MIN				' '
 #define ASCII_MAX				'~'
@@ -51,6 +52,15 @@
 #define COLOR_STANDARD			1
 #define COLOR_HIGHLIGHT			2
 #define COLOR_EDIT				3
+#define COLOR_TITLE				4
+#define COLOR_EDITOR			5
+#define COLOR_COMMAND			6
+
+#define ROWS_TITLE				1
+#define ROWS_COMMAND			2
+#define ROWS_EDIT(x)			(x - ROWS_TITLE - ROWS_COMMAND)
+
+#define SAFE_RELEASE_WINDOW(ptr)		if(ptr) delwin(ptr); ptr=NULL;
 
 const char HEX_NIBBLE[0x10] =
 {
@@ -79,7 +89,7 @@ HexIt::HexIt()
 ,	m_bShowColor(false)
 ,	m_bPrintUpper(false)
 ,	m_bShowByteCount(true)
-,	m_bShowASCII(0)
+,	m_bShowASCII(true)
 ,	m_uInsertWord(0)
 {
     
@@ -94,7 +104,7 @@ HexIt::HexIt(fstream* file)
 ,	m_bShowColor(false)
 ,	m_bPrintUpper(false)
 ,	m_bShowByteCount(true)
-,	m_bShowASCII(0)
+,	m_bShowASCII(true)
 ,	m_uInsertWord(0)
 {
 	m_pFile = file;
@@ -173,12 +183,7 @@ void HexIt::editMode()
 {
 	initNCurses();
     
-	int rows, columns;
-	getmaxyx(stdscr, rows, columns);
-    
-	//cout << "screen dimensions: " << rows << "x" << columns << endl;
-    
-	setTerminalSize(rows, columns);
+	setTerminalSize();
     
 	// we're editing so set running flag!
 	m_bRunning = true;
@@ -196,8 +201,8 @@ void HexIt::editMode()
 		// load the screen up with data!
 		while(m_bRunning)
 		{
-			// reset cursor position
-			move(0,0); // render from the top!
+			// ncurses reset cursor position
+			wmove(m_wEditArea, 0,0); // render from the top!
             
 			renderScreen();
             
@@ -205,33 +210,54 @@ void HexIt::editMode()
 			setCursorPos();
             
 			// accept input
-			int ch = getch();
+			int ch = wgetch(m_wEditArea);
             
+            if( ch == '\033' ) // start of an arrow?
+            {
+                getch(); // skip the [
+                switch(getch()) { // the real value
+                    case 'A':
+                        ch = KEY_UP;
+                        break;
+                    case 'B':
+                        ch = KEY_DOWN;
+                        break;
+                    case 'C':
+                        ch = KEY_RIGHT;
+                        break;
+                    case 'D':
+                        ch = KEY_LEFT;
+                        break;
+                }
+            }
             
 			switch(ch)
 			{
 				case 'q':
 					m_bRunning = false;
 					break;
+				case KEY_RESIZE:
+					setTerminalSize();
+					break;
 				case KEY_DOWN:
 					if(!m_cursor.editing)
-						moveCursor(0,1<<4);
+						moveCursor(0,ROW_SIZE);
 					break;
 				case KEY_UP:
 					if(!m_cursor.editing)
-						moveCursor(0,-1<<4);
+						moveCursor(0,-ROW_SIZE);
 					break;
 				case KEY_LEFT:
 					if(m_cursor.editing)
 						moveNibble(-1);
 					else
-						moveCursor(-2,0);
+						moveCursor(-WORD_SIZE,0);
 					break;
 				case KEY_RIGHT:
 					if(m_cursor.editing)
 						moveNibble(1);
 					else
-						moveCursor(2,0);
+						moveCursor(WORD_SIZE,0);
 					break;
 				case '\n':
 				case KEY_ENTER:
@@ -243,58 +269,58 @@ void HexIt::editMode()
                     
                     // Editing Keys
 				case '0':
-					editKey(0x0);
+					editKey(INPUT_KEY_0);
 					break;
 				case '1':
-					editKey(0x1);
+					editKey(INPUT_KEY_1);
 					break;
 				case '2':
-					editKey(0x2);
+					editKey(INPUT_KEY_2);
 					break;
 				case '3':
-					editKey(0x3);
+					editKey(INPUT_KEY_3);
 					break;
 				case '4':
-					editKey(0x4);
+					editKey(INPUT_KEY_4);
 					break;
 				case '5':
-					editKey(0x5);
+					editKey(INPUT_KEY_5);
 					break;
 				case '6':
-					editKey(0x6);
+					editKey(INPUT_KEY_6);
 					break;
 				case '7':
-					editKey(0x7);
+					editKey(INPUT_KEY_7);
 					break;
 				case '8':
-					editKey(0x8);
+					editKey(INPUT_KEY_8);
 					break;
 				case '9':
-					editKey(0x9);
+					editKey(INPUT_KEY_9);
 					break;
 				case 'a':
 				case 'A':
-					editKey(0xA);
+					editKey(INPUT_KEY_A);
 					break;
 				case 'b':
 				case 'B':
-					editKey(0xB);
+					editKey(INPUT_KEY_B);
 					break;
 				case 'c':
 				case 'C':
-					editKey(0xC);
+					editKey(INPUT_KEY_C);
 					break;
 				case 'd':
 				case 'D':
-					editKey(0xD);
+					editKey(INPUT_KEY_D);
 					break;
 				case 'e':
 				case 'E':
-					editKey(0xE);
+					editKey(INPUT_KEY_E);
 					break;
 				case 'f':
 				case 'F':
-					editKey(0xF);
+					editKey(INPUT_KEY_F);
 					break;
 			}
 		}
@@ -316,7 +342,8 @@ void HexIt::textColor(uint byte_pos, char byte_data)
 	if( !m_bShowColor )
 	{
 		text << setw(2) << setfill('0') << (byte_data & 0xFF);
-		addstr(text.str().c_str());
+		// ncurses
+		waddstr(m_wEditArea, text.str().c_str());
 		return;
 	}
 
@@ -326,24 +353,49 @@ void HexIt::textColor(uint byte_pos, char byte_data)
 		if( m_cursor.editing )
 		{
 			text << setw(2) << setfill('0') << (byte_data & 0xFF);
-			attron(COLOR_PAIR(COLOR_EDIT));
-			addstr(text.str().c_str());					
-			attroff(COLOR_PAIR(COLOR_EDIT));
+			// ncurses
+			wattron(m_wEditArea, COLOR_PAIR(COLOR_EDIT));
+			waddstr(m_wEditArea, text.str().c_str());					
+			wattroff(m_wEditArea, COLOR_PAIR(COLOR_EDIT));
 		}
 		else
 		{
 			text << setw(2) << setfill('0') << (byte_data & 0xFF);
-			attron(COLOR_PAIR(COLOR_HIGHLIGHT));
-			addstr(text.str().c_str());
-			attroff(COLOR_PAIR(COLOR_HIGHLIGHT));
+			// ncurses
+			wattron(m_wEditArea, COLOR_PAIR(COLOR_HIGHLIGHT));
+			waddstr(m_wEditArea, text.str().c_str());
+			wattroff(m_wEditArea, COLOR_PAIR(COLOR_HIGHLIGHT));
 		}
 
 	}
 	else
 	{
 		text << setw(2) << setfill('0') << (byte_data & 0xFF);
-		addstr(text.str().c_str());
+		// ncurses
+		wattron(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
+		waddstr(m_wEditArea, text.str().c_str());
+		wattroff(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
 	}
+}
+
+void HexIt::setTerminalSize()
+{
+	int rows, columns;
+	getmaxyx(stdscr, rows, columns);
+
+	m_uWidth = columns;
+
+	// we have 3 window areas, they all span the entire window's columns
+	// Title Area
+	// Editing area
+	// Command Area
+	SAFE_RELEASE_WINDOW(m_wTitleArea);
+	SAFE_RELEASE_WINDOW(m_wEditArea);
+	SAFE_RELEASE_WINDOW(m_wCommandArea);
+
+	m_wTitleArea 	= newwin(ROWS_TITLE,		columns, 0,			0);
+	m_wEditArea 	= newwin(ROWS_EDIT(rows),	columns, 1,			0);
+	m_wCommandArea	= newwin(ROWS_COMMAND,		columns, rows - 4,	0);
 }
 
 void HexIt::renderLine(ostream& output, uint start_byte, char* byte_seq, uint bytes_read)
@@ -395,12 +447,19 @@ void HexIt::renderLine(ostream& output, uint start_byte, char* byte_seq, uint by
 
 void HexIt::renderScreen()
 {
+	// Render Title Area
+	wmove(m_wTitleArea, 0, (m_uWidth>>1)-3);
+	waddstr(m_wTitleArea, "HexIt");
+	
+	// Render Edit Area
 	char c[READ_BUFFER_BYTES+1] = {0}; // grab 16 bytes at a time, add 1 to store terminating null
 	uint bytes_read = READ_BUFFER_BYTES;
 
 	//for( uint byte = m_uFilePos; byte <= m_uFileSize; byte += 16)
 	for( uint line = 0; line < m_uHeight; line++)
 	{
+		wmove(m_wEditArea, line, 0);
+
 		uint byte = m_uFilePos + line * 16;
         
 		if( byte < m_uFileSize )
@@ -431,9 +490,12 @@ void HexIt::renderScreen()
 
 			if(m_bShowByteCount) 
 			{
+				wattron(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
 				output << hex << getCaseFunction() << setw(7) << setfill('0') << byte << ": ";
-    			addstr(output.str().c_str());
+				// ncurses
+    			waddstr(m_wEditArea, output.str().c_str());
     			output.str("");
+    			wattroff(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
     		}
 
 			// output each byte
@@ -442,7 +504,10 @@ void HexIt::renderScreen()
 			{
 				if(!(j&1)) // every even byte index put a seperator
 				{
-					addch(' ');
+					// ncurses
+					wattron(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
+					waddch(m_wEditArea, ' ');
+					wattroff(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
 				}
 		        
 				// each byte will print 2 (padded) hex chars
@@ -453,21 +518,17 @@ void HexIt::renderScreen()
 					// test if we're editing this word, if so use the edit word instead
 					// remove the last bit from j so that both bytes we're editing are replaced
 					if( m_cursor.editing &&
-		               m_cursor.word == ( byte + (j & (0xFFFE) ) )
-		               )
+		                m_cursor.word == (byte + (j & (0xFFFE))) )
 					{
 						// pull out individual byte
 						toWrite = ((m_cursor.editWord >> ((1-(j&1))*8)) & 0xFF);
 					}
-					//output << hex << getCaseFunction() << setw(2) << setfill('0') << (toWrite & 0xFF);
-					//addstr(output.str().c_str());
-					//output.str("");
 					textColor(byte+j, toWrite);
 				}
 				else
 				{
-					//output << "  ";			// blank if not read
-					addch(' '); addch(' ');
+					// ncurses
+					waddch(m_wEditArea, ' '); waddch(m_wEditArea, ' ');
 					c[j] = ' ';		// blank if not read
 				}
 		        
@@ -478,16 +539,36 @@ void HexIt::renderScreen()
 				}
 			}
 			
-			output << "  ; " << c << " ;"; // output ascii straight onto the end!
-			output << endl;
-			addstr(output.str().c_str());
-			output.str("");
+			if( m_bShowASCII )
+			{
+				wattron(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
+				output << "  ; " << c << " ;"; // output ascii straight onto the end!
+				output << endl;
+
+				// ncurses
+				waddstr(m_wEditArea, output.str().c_str());
+				output.str("");
+				wattroff(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
+			}	
 		}
 		else
 		{
-			addch('\n');
+			// ncurses
+			waddch(m_wEditArea, '\n');
 		}
 	}
+	
+	// Render Command Area
+	wmove(m_wCommandArea, 0, (m_uWidth>>1)-3);
+	waddstr(m_wCommandArea, "HexIt");
+
+	// set window colors and update to screen
+	wbkgd(m_wTitleArea,		COLOR_PAIR(COLOR_TITLE));
+	wbkgd(m_wEditArea,		COLOR_PAIR(COLOR_EDITOR));
+	wbkgd(m_wCommandArea,	COLOR_PAIR(COLOR_COMMAND));
+	wrefresh(m_wTitleArea);
+	wrefresh(m_wEditArea);
+	wrefresh(m_wCommandArea);
 }
 
 void HexIt::setCursorPos(uint _word, uint _nibble)
@@ -506,13 +587,12 @@ void HexIt::setCursorPos()
 	uint row = getCursorRow();
 	uint col = COLUMN_POS(getCursorColumn()) + nibble;
     
-	move(row, col);
+	wmove(m_wEditArea, row, col);
 	//move(0,0);
 }
 
 uint HexIt::getCursorRow()
 {
-	
 	uint offset = m_cursor.word - m_uFilePos;
 	uint row = offset >> 4; // how many rows of bytes before the cursor.
 	
@@ -650,22 +730,23 @@ void HexIt::editKey(uint nibble)
 	m_cursor.nibble &= 0x3; // % 4
     
 	// print the last input nibble to the dirty screen
-	addch(HEX_NIBBLE[nibble]);
+	// addch(HEX_NIBBLE[nibble]);
 }
 
 void HexIt::initNCurses()
 {
+	// debug getch to wait for debugger!
 	initscr();
 	cbreak();
 	noecho();
 	keypad(stdscr, TRUE);
 
+	getch();
+
 	if(has_colors())
 	{
 		m_bShowColor = true;
 		start_color();
-
-		// init your color pairs! FG, BG
 
 		/*
 			ncurses colors
@@ -678,15 +759,23 @@ void HexIt::initNCurses()
 		        COLOR_CYAN    6
 		        COLOR_WHITE   7
 		*/
-        
+        // init your color pairs! FG, BG
 		init_pair(COLOR_STANDARD,		COLOR_WHITE,		COLOR_BLACK);
 		init_pair(COLOR_HIGHLIGHT,		COLOR_BLACK,		COLOR_WHITE);
 		init_pair(COLOR_EDIT,			COLOR_RED,			COLOR_WHITE);
+
+		init_pair(COLOR_TITLE,			COLOR_BLUE,			COLOR_WHITE);
+		init_pair(COLOR_EDITOR,			COLOR_WHITE,		COLOR_BLUE);
+		init_pair(COLOR_COMMAND,		COLOR_BLUE,		COLOR_WHITE);
 	}
 }
 
 void HexIt::cleanup()
 {
+	SAFE_RELEASE_WINDOW(m_wTitleArea);
+	SAFE_RELEASE_WINDOW(m_wEditArea);
+	SAFE_RELEASE_WINDOW(m_wCommandArea);
+
 	//clear the screen
 	move(0,0);
 	for(uint y = 0; y < m_uHeight; y++)
@@ -716,7 +805,7 @@ int main(int argc, char *argv[])
 	uint switches = 0;
 	string output_fn;
     
-	cout << endl << "HexIt" << " v0.1" << endl << endl;
+	//cout << endl << "HexIt" << " v0.1" << endl << endl;
     
 	if(argc <= 1)
 	{
@@ -755,7 +844,7 @@ int main(int argc, char *argv[])
 		
 	}
     
-	cout << "Opening file: " << argv[1] << endl << endl;
+	//cout << "Opening file: " << argv[1] << endl << endl;
     
 	// open the file as read/write
 	fstream file;

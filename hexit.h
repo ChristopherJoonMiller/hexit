@@ -59,8 +59,7 @@ public:
 	bool getPrintCase()	
 		{ return m_bPrintUpper; }
 	void textColor(uint byte_pos, char byte_data);	 			// set color of cursor byte to be red
-	void setTerminalSize(uint rows, uint columns)
-		{ m_uHeight = rows; m_uWidth = columns;}
+	void setTerminalSize();
 	void setCursorPos(uint _word, uint _nibble=0);
 	void setCursorPos();
 	uint getCursorRow();
@@ -94,10 +93,12 @@ private:
     bool m_bShowASCII;
     uint m_uInsertWord;
     
-    
-	vector<string> m_pScreenBuffer;	// output this buffer to the screen when in edit mode.
-
 	Cursor m_cursor;
+
+	// ncurses stuff
+	WINDOW *m_wTitleArea;
+	WINDOW *m_wEditArea;
+	WINDOW *m_wCommandArea;
 
 	void initNCurses();
 	void cleanup();
