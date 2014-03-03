@@ -3,7 +3,7 @@ CC = g++
 DEBUG = -g
 CFLAGS = -Wall -c
 LFLAGS = -Wall
-LDLIBS = -lcurses
+LDLIBS = -lcurses -ltermkey
 EXE = hexit
 
 hexit: $(OBJS)

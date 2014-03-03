@@ -12,6 +12,9 @@ viewer and editor.
 #ifndef __HEXIT_H__
 #define __HEXIT_H__
 
+#define VERSION_MAJOR 0
+#define VERSION_MINOR 11
+
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -19,6 +22,7 @@ viewer and editor.
 #include <vector>
 #include <assert.h>
 #include "curses.h"
+#include "termkey.h"
 
 using namespace std;
 typedef unsigned int uint;
@@ -41,42 +45,23 @@ class HexIt
 {
 public:
 	HexIt();
-	HexIt(fstream* file);
+	HexIt(char* filename);
 	HexIt(HexIt* h);
-
+	~HexIt();
+	
 	bool operator=(HexIt* h);
 
 	void print(ostream& output); 	 // output to terminal
 	void editMode();				 // live editing with ncurses
 
-	case_fptr getCaseFunction();
+	void setSwitches(uint switches);
 
-	// render one line of output!
-	void renderLine(ostream& output, uint start_byte, char* byte_seq, uint bytes_read);
-	void renderScreen();		 						// render the entire screen buffer!
-	void setPrintCase(bool upper)
-		{ m_bPrintUpper = upper; }
-	bool getPrintCase()	
-		{ return m_bPrintUpper; }
-	void textColor(uint byte_pos, char byte_data);	 			// set color of cursor byte to be red
-	void setTerminalSize();
-	void setCursorPos(uint _word, uint _nibble=0);
-	void setCursorPos();
-	uint getCursorRow();
-	uint getCursorColumn();
-	void checkCursorOffscreen();
-	void moveCursor(int x, int y);									// this sets up directional input
-	void moveNibble(int x);
-	uint maxFilePos();												// don't let the user scroll past the end
-
-	// Editing of the file
-	void toggleEdit(bool save=true);
-	void editKey(uint nibble);										// user input of hex nibbles
-	void insertWord(uint start_byte, uint data);
-	void updateWord(uint start_byte, uint data);
-	
 private:
 	fstream* m_pFile; // file handle
+    char m_inputFilename[128];
+    char m_outputFilename[128];
+    char m_appVersion[16];
+
 	stringstream m_buffer;	// hold the entire file in memory!
 	bool m_bRunning;		// should we quit exit mode?
 	bool m_bBufferDirty;	// have we edited the buffer and needs a save
@@ -96,12 +81,50 @@ private:
 	Cursor m_cursor;
 
 	// ncurses stuff
-	WINDOW *m_wTitleArea;
-	WINDOW *m_wEditArea;
-	WINDOW *m_wCommandArea;
+	WINDOW* m_wTitleArea;
+	WINDOW* m_wEditArea;
+	WINDOW* m_wStatusArea;
+	WINDOW* m_wCommandArea;
 
-	void initNCurses();
-	void cleanup();
+	TermKey* m_tk;
+
+	case_fptr getCaseFunction();
+
+	// render one line of output!
+	void renderLine(ostream& output, uint start_byte, char* byte_seq, uint bytes_read);
+	void renderScreen();		 						// render the entire screen buffer!
+	void textColor(uint byte_pos, char byte_data);	 			// set color of cursor byte to be red
+	void setTerminalSize();
+	void setCursorPos(uint _word, uint _nibble=0);
+	void setCursorPos();
+	uint getCursorRow();
+	uint getCursorColumn();
+	void checkCursorOffscreen();
+	void moveCursor(int x, int y);									// this sets up directional input
+	void moveNibble(int x);
+	uint maxFilePos();												// don't let the user scroll past the end
+
+	// Editing of the file
+	void toggleEdit(bool save=true);
+	void editKey(uint nibble);										// user input of hex nibbles
+	// void insertWord(uint start_byte, uint data);
+	// void updateWord(uint start_byte, uint data);
+	
+	// Input Commands
+	void cmdPageDn();
+	void cmdCopyByte();
+	void cmdFindByte();
+	void cmdInsertWord();
+	void cmdInsertWordAt();
+	void cmdOutputFile();
+	void cmdCursorWord();
+	void cmdCloseFile();
+	void cmdPageUp();
+	void cmdPasteByte();
+
+	// 
+	void editInit();
+	void editCleanup();
 
 };
 
