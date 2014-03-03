@@ -23,7 +23,6 @@ viewer and editor.
 #include <assert.h>
 #include "curses.h"
 #include "termkey.h"
-
 #include "hexit_def.h"
 
 using namespace std;

@@ -8,16 +8,15 @@ EXE = hexit
 
 SRCS = \
 main.cpp \
-hexit.cpp \
+hexit.cpp
 
 hexit: $(OBJS)
-
 	$(CC) $(DEBUG) $(LFLAGS) $(LDLIBS) -o $(EXE) $(OBJS)
 
 hexit.objs: $(SRCS) hexit.h
 	$(CC) $(DEBUG) $(CFLAGS) $(SRCS)
 
 all: clean hexit.objs hexit
-	
+
 clean:
 	rm *.o hexit

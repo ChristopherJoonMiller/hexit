@@ -33,8 +33,6 @@ HexIt::HexIt()
 :	m_pFile(NULL)
 ,	m_bRunning(false)
 ,	m_bBufferDirty(false)
-,	m_uHeight(40)
-,	m_uWidth(80)
 ,	m_uFilePos(0)
 ,	m_bShowColor(false)
 ,	m_bPrintUpper(false)
@@ -49,8 +47,6 @@ HexIt::HexIt()
 HexIt::HexIt(char* filename)
 :   m_bRunning(false)
 ,	m_bBufferDirty(false)
-,	m_uHeight(40)
-,	m_uWidth(80)
 ,	m_uFilePos(0)
 ,	m_bShowColor(false)
 ,	m_bPrintUpper(false)
@@ -152,8 +148,8 @@ void HexIt::editMode()
 {
 	editInit();
     
-	setTerminalSize();
-    
+    setTerminalSize();
+
 	// we're editing so set running flag!
 	m_bRunning = true;
     
@@ -167,17 +163,30 @@ void HexIt::editMode()
         
 	    m_buffer << m_pFile->rdbuf();
 	    m_buffer.seekg(0, ios::beg);
-		// load the screen up with data!
+		
+		// initialize the screen
+        renderScreen();
+	    
 		while(m_bRunning)
 		{
-         	// output the screen's text   
+         	// output the screen's text
 			renderScreen();
             
  			// accept input
- 			TermKeyResult ret;
+ 			TermKeyResult ret = TERMKEY_RES_NONE;
  			TermKeyKey key;
+            
+            // check for input
+            ret = termkey_waitkey(m_tk, &key);
+            
+            if( ret == TERMKEY_RES_ERROR)
+            {
+                setTerminalSize();
+            }
+            
+			if( ret != TERMKEY_RES_KEY )
+				continue;
 			
- 			ret = termkey_waitkey(m_tk, &key);
             if( key.type == TERMKEY_TYPE_KEYSYM) // a symbol key
             {
              	switch(key.code.sym)
@@ -415,21 +424,31 @@ void HexIt::setTerminalSize()
 
 	m_uWidth = columns;
 	m_uHeight = ROWS_EDIT(rows);
-
-	// we have 4 window areas, they all span the entire window's columns
-	// Title Area
-	// Editing area
-	// Status Area
-	// Command Area
-	SAFE_DELETE_WINDOW(m_wTitleArea);
-	SAFE_DELETE_WINDOW(m_wEditArea);
-	SAFE_DELETE_WINDOW(m_wStatusArea);
-	SAFE_DELETE_WINDOW(m_wCommandArea);
-
-	m_wTitleArea 	= newwin(ROWS_TITLE,		columns, 0,			0);
-	m_wEditArea 	= newwin(ROWS_EDIT(rows),	columns, 1,			0);
-	m_wStatusArea	= newwin(ROWS_STATUS,		columns, rows - 3,	0);
-	m_wCommandArea	= newwin(ROWS_COMMAND,		columns, rows - 2,	0);
+    
+    // we have 4 window areas, they all span the entire window's columns
+    // Title Area
+    // Editing area
+    // Status Area
+    // Command Area
+    SAFE_DELETE_WINDOW(m_wTitleArea);
+    SAFE_DELETE_WINDOW(m_wEditArea);
+    SAFE_DELETE_WINDOW(m_wStatusArea);
+    SAFE_DELETE_WINDOW(m_wCommandArea);
+    
+    m_wTitleArea 	= newwin(ROWS_TITLE,		m_uWidth, 0,			0);
+    m_wEditArea 	= newwin(m_uHeight,			m_uWidth, 1,			0);
+    m_wStatusArea	= newwin(ROWS_STATUS,		m_uWidth, m_uHeight+1,	0);
+    m_wCommandArea	= newwin(ROWS_COMMAND,		m_uWidth, m_uHeight+2,	0);
+    
+    wbkgd(m_wTitleArea,		COLOR_PAIR(COLOR_TITLE));
+    wbkgd(m_wEditArea,		COLOR_PAIR(COLOR_EDITOR));
+    wbkgd(m_wStatusArea,	COLOR_PAIR(COLOR_EDITOR));
+    wbkgd(m_wCommandArea,	COLOR_PAIR(COLOR_COMMAND));
+    
+    wclear(m_wTitleArea);
+    wclear(m_wEditArea);
+    wclear(m_wStatusArea);
+    wclear(m_wCommandArea);
 }
 
 void HexIt::renderLine(ostream& output, uint start_byte, char* byte_seq, uint bytes_read)
@@ -859,6 +878,7 @@ void HexIt::editInit()
 {
 	// let's init termkey now
 	m_tk = termkey_new(0, 0);
+	termkey_set_flags(m_tk, TERMKEY_FLAG_EINTR); // need this to respond to sigwinch
 
 	initscr();
 	raw();
