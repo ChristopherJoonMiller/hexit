@@ -46,47 +46,22 @@ int main(int argc, char *argv[])
 	// parse switches
 	for(int i = 1; i < (argc - 1); i++)
 	{
-		if(!strcmp(argv[i],"-e"))
-		{
-			switches |= SWITCH_EDIT;
-		}
-		else if(!strcmp(argv[i],"-h"))
+		if(!strcmp(argv[i],"-h"))
 		{
 			usage();
 			return 0;
 		}
-		else if(!strcmp(argv[i],"-u"))
+		else if(!strcmp(argv[i],"-p"))
 		{
-			CHECK_ARGC(i);
-			if(CHECK_TRUE(argv[i+1][0]))
-			{
-				switches |= SWITCH_UPPER;
-			}
-			else
-			{
-				switches &= ~(SWITCH_UPPER);
-			}
-			i++;
+			switches &= ~(SWITCH_EDIT);
 		}
 		else if(!strcmp(argv[i],"-o"))
 		{
 			CHECK_ARGC(i);
 			switches |= SWITCH_OUTPUT;
+			switches &= ~(SWITCH_EDIT);
 			output_fn.assign(argv[i+1]);
 			i++; // skip the output name
-		}
-		else if(!strcmp(argv[i],"-b"))
-		{
-			CHECK_ARGC(i);
-			if(CHECK_TRUE(argv[i+1][0]))
-			{
-				switches |= SWITCH_SHOW_BYTE_COUNT;
-			}
-			else
-			{
-				switches &= ~(SWITCH_SHOW_BYTE_COUNT);
-			}
-			i++;
 		}
 		else if(!strcmp(argv[i],"-a"))
 		{
@@ -98,6 +73,19 @@ int main(int argc, char *argv[])
 			else
 			{
 				switches &= ~(SWITCH_SHOW_ASCII);
+			}
+			i++;
+		}
+		else if(!strcmp(argv[i],"-b"))
+		{
+			CHECK_ARGC(i);
+			if(CHECK_TRUE(argv[i+1][0]))
+			{
+				switches |= SWITCH_SHOW_BYTE_COUNT;
+			}
+			else
+			{
+				switches &= ~(SWITCH_SHOW_BYTE_COUNT);
 			}
 			i++;
 		}
@@ -114,22 +102,28 @@ int main(int argc, char *argv[])
 			}
 			i++;
 		}
+		else if(!strcmp(argv[i],"-u"))
+		{
+			CHECK_ARGC(i);
+			if(CHECK_TRUE(argv[i+1][0]))
+			{
+				switches |= SWITCH_UPPER;
+			}
+			else
+			{
+				switches &= ~(SWITCH_UPPER);
+			}
+			i++;
+		}
 	}
     
 	//cout << "Opening file: " << argv[1] << endl << endl;    
 	HexIt h(argv[argc-1]);
     
-	// Does the user want uppercase letters?
 	h.setSwitches(switches);
 	
-	// are we editing
-	if( switches & SWITCH_EDIT )
-	{
-		h.editMode();
-        
-		// check if we need to save anything
-	}
-	else // output to a stream
+	// are we outputting?
+	if( !(switches & SWITCH_EDIT) ) // if not editing output to a stream
 	{
 		if( switches & SWITCH_OUTPUT )		// file
 		{
@@ -143,6 +137,10 @@ int main(int argc, char *argv[])
 		{
 			h.print(cout);	
 		}
+	}
+	else if( switches & SWITCH_EDIT )
+	{
+		h.editMode();
 	}
     
 	return 0;
