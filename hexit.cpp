@@ -12,66 +12,6 @@
 
 #include <algorithm>
 
-#define READ_BUFFER_BYTES		16
-#define WORD_SIZE				 2
-#define ROW_SIZE				16
-
-#define ASCII_MIN				' '
-#define ASCII_MAX				'~'
-
-
-// Flags for command line switches
-#define FLAG(x)					(1<<x)
-#define SWITCH_UPPER			FLAG(0)
-#define SWITCH_OUTPUT			FLAG(1)
-#define SWITCH_EDIT				FLAG(2)
-#define SWITCH_SHOW_BYTE_COUNT	FLAG(3)
-#define SWITCH_SHOW_ASCII		FLAG(4)
-#define SWITCH_COLOR			FLAG(5)
-// make sure you don't make more than 32 flags!
-
-#define NIBBLE_SHIFT(x)			((0x3 - x)<<2)			 // 0-3 * 4
-#define NIBBLE_MASK(x)			(0xF << NIBBLE_SHIFT(x)) // invert nibble count
-
-#define MORE_SIG_BYTE(x)		(x<<4);
-#define LESS_SIG_BYTE(x)		(x>>4);
-
-#define INPUT_KEY_0				0x0
-#define INPUT_KEY_1				0x1
-#define INPUT_KEY_2				0x2
-#define INPUT_KEY_3				0x3
-#define INPUT_KEY_4				0x4
-#define INPUT_KEY_5				0x5
-#define INPUT_KEY_6				0x6
-#define INPUT_KEY_7				0x7
-#define INPUT_KEY_8				0x8
-#define INPUT_KEY_9				0x9
-#define INPUT_KEY_A				0xA
-#define INPUT_KEY_B				0xB
-#define INPUT_KEY_C				0xC
-#define INPUT_KEY_D				0xD
-#define INPUT_KEY_E				0xE
-#define INPUT_KEY_F				0xF
-
-#define COLOR_STANDARD			1
-#define COLOR_HIGHLIGHT			2
-#define COLOR_EDIT				3
-#define COLOR_TITLE				4
-#define COLOR_EDITOR			5	// Status line will share background with the Editor
-#define COLOR_COMMAND			6
-
-#define ROWS_TITLE				1
-#define ROWS_STATUS				1
-#define ROWS_COMMAND			2
-#define ROWS_EDIT(x)			(x - ROWS_TITLE - ROWS_COMMAND - ROWS_STATUS)
-
-#define HALF_WIDTH(x)			(x>>1)
-
-#define SAFE_DELETE_WINDOW(ptr)		if(ptr) delwin(ptr); ptr=NULL;
-
-#define CHECK_TRUE(x)			(x != '0' && x != 'f')
-#define CHECK_ARGC(x)			if( i+1 == argc ) { usage(); return 1; }
-
 const char HEX_NIBBLE[0x10] =
 {
 	'0', '1', '2', '3',
@@ -294,8 +234,12 @@ void HexIt::editMode()
 	                    	break;
 
                     	case 'f':
+                    		cmdFillWord();
+                    		break;
 	                    case 'F':
-	                    	cmdFindByte();
+	                    	cmdFillWord();
+	                    	cmdInsertWordAt();
+	                    	break;
 
 	                    case 'i':
 	                    	cmdInsertWord();
@@ -311,7 +255,7 @@ void HexIt::editMode()
 						
 						case 'w':
                     	case 'W':
-                    		cmdCursorWord();
+                    		cmdFindByte();
                     		break;
 
 						case 'x':
@@ -870,6 +814,11 @@ void HexIt::cmdFindByte()
 
 }
 
+void HexIt::cmdFillWord()
+{
+
+}
+
 void HexIt::cmdInsertWord()
 {
 	m_uInsertWord++;
@@ -974,146 +923,3 @@ void HexIt::editCleanup()
 	}
     
 }
-
-// Global Functions!
-void usage()
-{
-	cout << "\nUsage:\n";
-	cout << "  hexit file [-h][-e][-o output][-u t|f][-a t|f][-b t|f][-c t|f]\n\n";
-	cout << "  -h: display this help dialog\n";
-	cout << "  -e: edit mode instead of outputting to stdout\n";
-	cout << "  -o: supply a filename to output ASCII HEX to\n";
-	cout << "  -u: uppercase the hexadecimal output true or false\n";
-	cout << "  -a: show ascii text true or false\n";
-	cout << "  -b: show byte count true or false\n";
-	cout << "  -c: use colored text in the editor true or false\n";
-	cout << "                  (if your terminal supports color)\n";
-	cout << endl;
-}
-
-// Main Application
-int main(int argc, char *argv[])
-{
-    // char a;
-    // cin >> a; // wait for debugger
-    
-	uint switches = 0;
-    uint default_on = (SWITCH_UPPER | SWITCH_SHOW_BYTE_COUNT | SWITCH_SHOW_ASCII | SWITCH_COLOR);
-    uint default_off = (SWITCH_OUTPUT | SWITCH_EDIT );
-    switches = default_on;
-    switches &= ~(default_off);
-
-	if(argc <= 1)
-	{
-		
-		usage();
-		return 0;
-	}
-    
-    string output_fn(argv[1]); // default to input filename
-
-	// parse switches
-	for(int i = 1; i < argc; i++)
-	{
-		if(!strcmp(argv[i],"-e"))
-		{
-			switches |= SWITCH_EDIT;
-		}
-		else if(!strcmp(argv[i],"-h"))
-		{
-			usage();
-			return 0;
-		}
-		else if(!strcmp(argv[i],"-u"))
-		{
-			CHECK_ARGC(i);
-			if(CHECK_TRUE(argv[i+1][0]))
-			{
-				switches |= SWITCH_UPPER;
-			}
-			else
-			{
-				switches &= ~(SWITCH_UPPER);
-			}
-			i++;
-		}
-		else if(!strcmp(argv[i],"-o"))
-		{
-			CHECK_ARGC(i);
-			switches |= SWITCH_OUTPUT;
-			output_fn.assign(argv[i+1]);
-			i++; // skip the output name
-		}
-		else if(!strcmp(argv[i],"-b"))
-		{
-			CHECK_ARGC(i);
-			if(CHECK_TRUE(argv[i+1][0]))
-			{
-				switches |= SWITCH_SHOW_BYTE_COUNT;
-			}
-			else
-			{
-				switches &= ~(SWITCH_SHOW_BYTE_COUNT);
-			}
-			i++;
-		}
-		else if(!strcmp(argv[i],"-a"))
-		{
-			CHECK_ARGC(i);
-			if(CHECK_TRUE(argv[i+1][0]))
-			{
-				switches |= SWITCH_SHOW_ASCII;
-			}
-			else
-			{
-				switches &= ~(SWITCH_SHOW_ASCII);
-			}
-			i++;
-		}
-		else if(!strcmp(argv[i],"-c"))
-		{
-			CHECK_ARGC(i);
-			if(CHECK_TRUE(argv[i+1][0]))
-			{
-				switches |= SWITCH_COLOR;
-			}
-			else
-			{
-				switches &= ~(SWITCH_COLOR);
-			}
-			i++;
-		}
-	}
-    
-	//cout << "Opening file: " << argv[1] << endl << endl;    
-	HexIt h(argv[1]);
-    
-	// Does the user want uppercase letters?
-	h.setSwitches(switches);
-	
-	// are we editing
-	if( switches & SWITCH_EDIT )
-	{
-		h.editMode();
-        
-		// check if we need to save anything
-	}
-	else // output to a stream
-	{
-		if( switches & SWITCH_OUTPUT )		// file
-		{
-			cout << "Outputting file: " << output_fn << endl << endl;
-			ofstream output_stream;
-			output_stream.open(output_fn.c_str());
-			h.print(output_stream);
-			output_stream.close();
-		}
-		else								// stdout
-		{
-			h.print(cout);	
-		}
-	}
-    
-	return 0;
-}
-

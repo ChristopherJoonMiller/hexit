@@ -24,8 +24,10 @@ viewer and editor.
 #include "curses.h"
 #include "termkey.h"
 
+#include "hexit_def.h"
+
 using namespace std;
-typedef unsigned int uint;
+
 typedef ios_base& (*case_fptr) (ios_base& str);
 
 struct Cursor
@@ -113,6 +115,7 @@ private:
 	// Input Commands
 	void cmdPageDn();
 	void cmdCopyByte();
+	void cmdFillWord();
 	void cmdFindByte();
 	void cmdInsertWord();
 	void cmdInsertWordAt();
