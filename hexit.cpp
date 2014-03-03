@@ -919,9 +919,13 @@ void HexIt::editInit()
 	// debug getch to wait for debugger!
 	//getch();
 
-	if(has_colors())
+	// if we don't have color ability then it's off regardless
+	if(!has_colors())
+		m_bShowColor = false;
+
+	// this should be defaulted to on now
+	if(m_bShowColor)
 	{
-		m_bShowColor = true;
 		start_color();
 
 		/*
@@ -983,6 +987,7 @@ void usage()
 	cout << "  -a: show ascii text true or false\n";
 	cout << "  -b: show byte count true or false\n";
 	cout << "  -c: use colored text in the editor true or false\n";
+	cout << "                  (if your terminal supports color)\n";
 	cout << endl;
 }
 
@@ -1008,7 +1013,7 @@ int main(int argc, char *argv[])
     string output_fn(argv[1]); // default to input filename
 
 	// parse switches
-	for(int i = 2; i < argc; i++)
+	for(int i = 1; i < argc; i++)
 	{
 		if(!strcmp(argv[i],"-e"))
 		{
