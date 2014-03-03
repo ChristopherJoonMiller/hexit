@@ -17,5 +17,7 @@ hexit: $(OBJS)
 hexit.objs: $(SRCS) hexit.h
 	$(CC) $(DEBUG) $(CFLAGS) $(SRCS)
 
+all: clean hexit.objs hexit
+	
 clean:
 	rm *.o hexit

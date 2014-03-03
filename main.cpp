@@ -10,15 +10,15 @@ using namespace std;
 void usage()
 {
 	cout << "\nUsage:\n";
-	cout << "  hexit file [-h][-e][-o output][-u t|f][-a t|f][-b t|f][-c t|f]\n\n";
-	cout << "  -h: display this help dialog\n";
-	cout << "  -e: edit mode instead of outputting to stdout\n";
-	cout << "  -o: supply a filename to output ASCII HEX to\n";
-	cout << "  -u: uppercase the hexadecimal output true or false\n";
-	cout << "  -a: show ascii text true or false\n";
-	cout << "  -b: show byte count true or false\n";
-	cout << "  -c: use colored text in the editor true or false\n";
+	cout << "  hexit [-h][-p][-o output][-a t|f][-b t|f][-c t|f][-u t|f] file\n\n";
+	cout << "  -h: display this HELP dialog\n";
+	cout << "  -p: PRINT to stdout and exit\n";
+	cout << "  -o: supply a filename to OUTPUT ASCII hexadecimal to\n";
+	cout << "  -a: show ASCII text true or false\n";
+	cout << "  -b: show BYTE count true or false\n";
+	cout << "  -c: use COLORED text in the editor true or false\n";
 	cout << "                  (if your terminal supports color)\n";
+	cout << "  -u: UPPERCASE the hexadecimal output true or false\n";
 	cout << endl;
 }
 
@@ -29,22 +29,22 @@ int main(int argc, char *argv[])
     // cin >> a; // wait for debugger
     
 	uint switches = 0;
-    uint default_on = (SWITCH_UPPER | SWITCH_SHOW_BYTE_COUNT | SWITCH_SHOW_ASCII | SWITCH_COLOR);
-    uint default_off = (SWITCH_OUTPUT | SWITCH_EDIT );
+    uint default_on = (SWITCH_EDIT | SWITCH_UPPER | SWITCH_SHOW_BYTE_COUNT | SWITCH_SHOW_ASCII | SWITCH_COLOR);
+    uint default_off = (SWITCH_OUTPUT);
     switches = default_on;
     switches &= ~(default_off);
 
-	if(argc <= 1)
+	if(argc <= 1) // nothing to work on so exit
 	{
 		
 		usage();
 		return 0;
 	}
     
-    string output_fn(argv[1]); // default to input filename
+    string output_fn(argv[argc-1]); // default to input filename
 
 	// parse switches
-	for(int i = 1; i < argc; i++)
+	for(int i = 1; i < (argc - 1); i++)
 	{
 		if(!strcmp(argv[i],"-e"))
 		{
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 	}
     
 	//cout << "Opening file: " << argv[1] << endl << endl;    
-	HexIt h(argv[1]);
+	HexIt h(argv[argc-1]);
     
 	// Does the user want uppercase letters?
 	h.setSwitches(switches);

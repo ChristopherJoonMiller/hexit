@@ -1,13 +1,14 @@
-HexIt
+# HexIt
 
-This is a Hex Editor written in C++ using the ncruses and termkey libraries.
+HexIt is a Hex Editor written in C++ using the ncruses and termkey libraries.
 
-On osx these can both be installed with brew:
-brew install ncurses
-brew install libtermkey
+On OSX these can both be installed with brew:
+> brew install ncurses
 
-Then just run:
-make
+> brew install libtermkey
 
-run executable
-./hexit -h
+Then just compile:
+> make
+
+run executable:
+> ./hexit -h
