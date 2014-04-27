@@ -1,10 +1,10 @@
 #ifndef __HEXIT_DEF_H__
 #define __HEXIT_DEF_H__
 
-#define READ_BUFFER_BYTES		16
-#define WORD_SIZE				 2
-#define ROW_SIZE				16
-
+#define READ_BUFFER_BYTES		16 // Bytes
+#define WORD_SIZE				 2 // Bytes
+#define ROW_SIZE				16 // Bytes
+#define HEIGHT_TO_PAGE_SIZE(x)  (x<<4) // multiply the height by 16. bitshift is faster
 #define ASCII_MIN				' '
 #define ASCII_MAX				'~'
 
@@ -59,5 +59,5 @@
 #define SAFE_DELETE_WINDOW(ptr)		if(ptr) delwin(ptr); ptr=NULL;
 
 typedef unsigned int uint;
-
+typedef char byte;
 #endif

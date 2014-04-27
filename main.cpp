@@ -25,8 +25,8 @@ void usage()
 // Main Application
 int main(int argc, char *argv[])
 {
-    // char a;
-    // cin >> a; // wait for debugger
+    char a;
+    cin >> a; // wait for debugger
     
 	uint switches = 0;
     uint default_on = (SWITCH_EDIT | SWITCH_UPPER | SWITCH_SHOW_BYTE_COUNT | SWITCH_SHOW_ASCII | SWITCH_COLOR);
@@ -36,7 +36,6 @@ int main(int argc, char *argv[])
 
 	if(argc <= 1) // nothing to work on so exit
 	{
-		
 		usage();
 		return 0;
 	}

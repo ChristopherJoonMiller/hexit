@@ -27,7 +27,7 @@ uint g_column_pos[0x10] =
 	20, 22, 25, 27,
 	30, 32, 35, 37
 };
-#define COLUMN_POS(x) ((m_bShowByteCount?10:0)+g_column_pos[x])
+#define COLUMN_POS(x) ((m_bShowByteCount?getByteCountWidth()+3:0)+g_column_pos[x])
 
 HexIt::HexIt()
 :	m_pFile(NULL)
@@ -39,6 +39,7 @@ HexIt::HexIt()
 ,	m_bShowByteCount(true)
 ,	m_bShowASCII(true)
 ,	m_uInsertWord(0)
+,	m_uByteCountWidth(4)
 {
     sprintf(m_appVersion, "HexIt v%d.%d", VERSION_MAJOR, VERSION_MINOR);
     m_outputFilename[0] = 0;
@@ -53,6 +54,7 @@ HexIt::HexIt(char* filename)
 ,	m_bShowByteCount(true)
 ,	m_bShowASCII(true)
 ,	m_uInsertWord(0)
+,	m_uByteCountWidth(4)
 {
 	sprintf(m_appVersion, "HexIt v%d.%d", VERSION_MAJOR, VERSION_MINOR);
 	m_outputFilename[0] = 0;
@@ -118,24 +120,24 @@ void HexIt::print(ostream& output)
 			
 			if( !m_pFile->eof() ) // keep going!
 			{
-				size  = (uint)m_pFile->tellg();
+				size = (uint)m_pFile->tellg();
 				m_pFile->read(c,READ_BUFFER_BYTES);
                 
 				bytes_read = (uint)m_pFile->gcount();		// see how much we actually got
 				size += bytes_read;
                 
-				if( bytes_read < READ_BUFFER_BYTES )
-				{
-					c[bytes_read] = 0x0a;
-					bytes_read += 1; // fake stop byte
+				// if( bytes_read < READ_BUFFER_BYTES )
+				// {
+				// 	c[bytes_read] = 0x0a;
+				// 	bytes_read += 1; // fake stop byte
 					
-				}
+				// }
 			}
-			else // This means we read 16 bytes and hit the eof last round
-			{
-				bytes_read = 1; // fake stop byte
-				c[0] = 0x0a;
-			}
+			// else // This means we read 16 bytes and hit the eof last round
+			// {
+			// 	bytes_read = 1; // fake stop byte
+			// 	c[0] = 0x0a;
+			// }
             
 			renderLine(output, i<<4, c, bytes_read);
 			
@@ -171,6 +173,7 @@ void HexIt::editMode()
 		{
          	// output the screen's text
 			renderScreen();
+			renderScreen();
             
  			// accept input
  			TermKeyResult ret = TERMKEY_RES_NONE;
@@ -179,6 +182,8 @@ void HexIt::editMode()
             // check for input
             ret = termkey_waitkey(m_tk, &key);
             
+            // so far the only error I know of is sigwinch
+            // we'll see if this turns out to be a problem
             if( ret == TERMKEY_RES_ERROR)
             {
                 setTerminalSize();
@@ -238,7 +243,7 @@ void HexIt::editMode()
 	                    case 'C':
 	                    	if(!m_cursor.editing)
 	                    	{
-	                    		cmdCopyByte();
+	                    		cmdCopyWord();
 	                    	}
 	                    	break;
 
@@ -246,15 +251,16 @@ void HexIt::editMode()
                     		cmdFillWord();
                     		break;
 	                    case 'F':
+	                    	cmdSetCursorWordAt();
 	                    	cmdFillWord();
-	                    	cmdInsertWordAt();
 	                    	break;
 
 	                    case 'i':
 	                    	cmdInsertWord();
 	                    	break;
 	                    case 'I':
-	                    	cmdInsertWordAt();
+	                    	cmdSetCursorWordAt();
+	                    	cmdInsertWord();
 	                    	break;
 
 	                    case 'o':
@@ -264,7 +270,7 @@ void HexIt::editMode()
 						
 						case 'w':
                     	case 'W':
-                    		cmdFindByte();
+                    		cmdFindWord();
                     		break;
 
 						case 'x':
@@ -283,7 +289,7 @@ void HexIt::editMode()
 	                    	if(!m_cursor.editing)
 	                    	{
 	                    		toggleEdit(true);
-	                    		cmdPasteByte();
+	                    		cmdPasteWord();
 	                    	}
 	                    	break;
 	                    default:
@@ -419,13 +425,7 @@ void HexIt::textColor(uint byte_pos, char byte_data)
 
 void HexIt::setTerminalSize()
 {
-	int rows, columns;
-	getmaxyx(stdscr, rows, columns);
-
-	m_uWidth = columns;
-	m_uHeight = ROWS_EDIT(rows);
-    
-    // we have 4 window areas, they all span the entire window's columns
+	// we have 4 window areas, they all span the entire window's columns
     // Title Area
     // Editing area
     // Status Area
@@ -434,23 +434,52 @@ void HexIt::setTerminalSize()
     SAFE_DELETE_WINDOW(m_wEditArea);
     SAFE_DELETE_WINDOW(m_wStatusArea);
     SAFE_DELETE_WINDOW(m_wCommandArea);
+
+    // you need to delete subwindows first to get an
+    // accurate measurement from stdscr, don't ask me why
+	int rows, columns;
+	getmaxyx(stdscr, rows, columns);
+
+	m_uWidth = (uint)columns;
+	m_uHeight = ROWS_EDIT((uint)rows);
     
     m_wTitleArea 	= newwin(ROWS_TITLE,		m_uWidth, 0,			0);
     m_wEditArea 	= newwin(m_uHeight,			m_uWidth, 1,			0);
     m_wStatusArea	= newwin(ROWS_STATUS,		m_uWidth, m_uHeight+1,	0);
     m_wCommandArea	= newwin(ROWS_COMMAND,		m_uWidth, m_uHeight+2,	0);
     
-    wbkgd(m_wTitleArea,		COLOR_PAIR(COLOR_TITLE));
-    wbkgd(m_wEditArea,		COLOR_PAIR(COLOR_EDITOR));
-    wbkgd(m_wStatusArea,	COLOR_PAIR(COLOR_EDITOR));
-    wbkgd(m_wCommandArea,	COLOR_PAIR(COLOR_COMMAND));
-    
     wclear(m_wTitleArea);
     wclear(m_wEditArea);
     wclear(m_wStatusArea);
     wclear(m_wCommandArea);
+
+    wbkgd(m_wTitleArea,		COLOR_PAIR(COLOR_TITLE));
+    wbkgd(m_wEditArea,		COLOR_PAIR(COLOR_EDITOR));
+    wbkgd(m_wStatusArea,	COLOR_PAIR(COLOR_EDITOR));
+    wbkgd(m_wCommandArea,	COLOR_PAIR(COLOR_COMMAND));
 }
 
+void HexIt::renderStatus(const string& message, uint y, uint x)
+{
+	wclear(m_wStatusArea);
+	wmove(m_wStatusArea,y,x);
+
+	if( message.length() )
+	{
+		waddstr(m_wStatusArea, message.c_str() );
+	}
+}
+
+void HexIt::renderCommand(const string& message, uint y, uint x)
+{
+	wclear(m_wCommandArea);
+	wmove(m_wCommandArea,y,x);
+
+	if( message.length() )
+	{
+		waddstr(m_wCommandArea, message.c_str() );
+	}
+}
 void HexIt::renderLine(ostream& output, uint start_byte, char* byte_seq, uint bytes_read)
 {
 	// put hex byte count to start the row
@@ -515,6 +544,10 @@ void HexIt::renderScreen()
 	wmove(m_wTitleArea, 0, centered);
 	waddstr(m_wTitleArea, "File: ");
 	waddstr(m_wTitleArea, m_inputFilename);
+    
+    // Render all output
+	stringstream output;
+
 	// Modified?
 	if(m_bBufferDirty)
 	{
@@ -536,25 +569,26 @@ void HexIt::renderScreen()
         
 		if( byte < m_uFileSize )
 		{
-			m_buffer.seekg(byte, ios::beg);
-			memset(c,0x00,READ_BUFFER_BYTES);	// reset the buffer in case we don't get 16 bytes
-			
-			if( !m_buffer.eof() ) // keep going!
-			{
-				m_buffer.read(c,READ_BUFFER_BYTES);
-				bytes_read = (uint)m_buffer.gcount();		// see how much we actually got
-                
-				if( bytes_read < READ_BUFFER_BYTES )
-				{
-					c[bytes_read] = 0x0a;
-					bytes_read += 1; // fake stop byte
-				}
-			}
-			else // This means we read 16 bytes and hit the eof last round
-			{
-				bytes_read = 1; // fake stop byte
-				c[0] = 0x0a;
-			}
+            memset(c,0x00,READ_BUFFER_BYTES);	// reset the buffer in case we don't get 16 bytes
+            
+            m_buffer.seekg(byte, ios::beg);
+            
+            if(byte+READ_BUFFER_BYTES >= m_uFileSize)
+            {
+				m_buffer.read(c,m_uFileSize - byte);
+            }
+            else
+            {
+                m_buffer.read(c,READ_BUFFER_BYTES);
+            }
+            
+            bytes_read = (uint)m_buffer.gcount();		// see how much we actually got
+            
+            // if( bytes_read < READ_BUFFER_BYTES )
+            // {
+            //     c[bytes_read] = 0x0a;
+            //     bytes_read += 1; // fake stop byte
+            // }
 			
 			//renderLine(output, byte, &c[0], bytes_read);
 			stringstream output;
@@ -563,7 +597,7 @@ void HexIt::renderScreen()
 			if(m_bShowByteCount) 
 			{
 				wattron(m_wEditArea, COLOR_PAIR(COLOR_EDITOR));
-				output << hex << getCaseFunction() << setw(7) << setfill('0') << byte << ": ";
+				output << hex << getCaseFunction() << setw(getByteCountWidth()) << setfill('0') << byte << ": ";
 				// ncurses
     			waddstr(m_wEditArea, output.str().c_str());
     			output.str("");
@@ -632,17 +666,21 @@ void HexIt::renderScreen()
 			waddch(m_wEditArea, '\n');
 		}
 	}
+
 	setCursorPos();
 	
 	// Render Status Area
-	wmove(m_wStatusArea, 0, HALF_WIDTH(m_uWidth)-HALF_WIDTH(6));
-	waddstr(m_wStatusArea, "STATUS");
+	output << "BYTE " << getCaseFunction() << hex << setw(getByteCountWidth()) << setfill('0') << m_cursor.word;
+	renderStatus(output.str(),0, m_uWidth - getByteCountWidth() - 6 );
 
 	// Render Command Area
-	wmove(m_wCommandArea, 0, HALF_WIDTH(m_uWidth)-HALF_WIDTH(5));
-	waddstr(m_wCommandArea, "HexIt");
-	wmove(m_wCommandArea, 1, HALF_WIDTH(m_uWidth)-HALF_WIDTH(7));
-	waddstr(m_wCommandArea, "COMMAND");
+	output.str("");
+
+	output << "^C Copy Word    ^Y Prev Page   ^F Fill Word   ^I Insert Word" << endl;
+	output << "^V Paste Word   ^B Next Page   ^W Where Is    ^O Write Out     ^X Exit";
+	
+	renderCommand(output.str(),0,0);
+	output << "Please Enter a Word Position: \n[Default: " << getCaseFunction() << hex << m_cursor.word << "] ";
 
 	// update to screen
 	wrefresh(m_wTitleArea);
@@ -690,7 +728,7 @@ uint HexIt::getCursorColumn()
 
 void HexIt::checkCursorOffscreen()
 {
-	while(m_cursor.word >= m_uFilePos + (m_uHeight<<4) || m_cursor.word > m_uFileSize)
+	while(m_cursor.word >= m_uFilePos + HEIGHT_TO_PAGE_SIZE(m_uHeight) || m_cursor.word > m_uFileSize)
 	{
 		m_uFilePos = min( m_uFilePos + 0x10, maxFilePos());
 	}
@@ -707,34 +745,67 @@ void HexIt::moveNibble(int x)
 
 uint HexIt::maxFilePos()
 {
-	// take the file size and align it to 16 bytes to get
-	// the start of the the last byte's 16 byte sequence
+    // if the fileSize is less than one page of hex, don't ever advance the file pos
+    if( m_uFileSize < HEIGHT_TO_PAGE_SIZE(m_uHeight) )
+    {
+        return 0;
+    }
+    
+    // otherwise the max file pos is the end of the file's page start.
+    
+    // take the file size and clear the least significant 4 bits to get
+	// the start byte of the the last line's 16 byte sequence
 	uint start_byte = m_uFileSize & ~(0xF);
-
-	// now subtract the number of 16 byte rows in the buffer from a
-	// full screen's buffer or end of the file's start_byte, whichever is larger
-	start_byte = max(start_byte, m_uHeight<<4) - (m_uHeight << 4);
+	
+    // subtract one page of hex (not including the final line)
+    start_byte -= HEIGHT_TO_PAGE_SIZE((m_uHeight-1));
 
 	return start_byte;
+}
+
+void HexIt::updateByteCountWidth()
+{
+	// see how many hex digits are required to show the file position
+	stringstream width;
+	width << hex << m_uFileSize;
+	m_uByteCountWidth = (uint)width.str().length();
+}
+
+uint HexIt::getByteCountWidth()
+{
+    
+    return m_uByteCountWidth;
 }
 
 void HexIt::moveCursor(int x, int y)
 {
 	int newX = m_cursor.word + x;
 	int newY = m_cursor.word + y;
-	// don't allow someone to scroll past the end until a word is inserted
+	
+	// don't allow someone to scroll past the end
 	if( (x < 0 && newX >= 0) ||
 	    (x > 0 && newX < m_uFileSize) )
 	{
 		m_cursor.word = newX;
 	}
-	
     
 	if( (y < 0 && newY >= 0) ||
-	    (y > 0 && newY < (m_uFileSize & 0xFFFFFF0)) )
+	    (y > 0 && newY < m_uFileSize) )
     {
 		m_cursor.word = newY;
 	}
+    else if( y == -HEIGHT_TO_PAGE_SIZE(m_uHeight) && newY < 0 )
+    {
+        m_cursor.word = 0;
+    }
+    else if( y == HEIGHT_TO_PAGE_SIZE(m_uHeight) && newY > m_uFileSize )
+    {
+        // override a page down past the end and just go to the last word
+        newY = m_uFileSize & ~(0xF);
+        while( newY + 2 < m_uFileSize )
+            newY += 2;
+        m_cursor.word = newY;
+    }
 
     // first adjust file pos
 	checkCursorOffscreen();
@@ -818,17 +889,23 @@ void HexIt::editKey(uint nibble)
 	// addch(HEX_NIBBLE[nibble]);
 }
 
+void HexIt::cmdPageUp()
+{
+	moveCursor(0,-HEIGHT_TO_PAGE_SIZE(m_uHeight));
+}
+
 void HexIt::cmdPageDn()
 {
-
+	moveCursor(0,HEIGHT_TO_PAGE_SIZE(m_uHeight));
 }
 
-void HexIt::cmdCopyByte()
+void HexIt::cmdCopyWord()
 {
-
+	m_buffer.seekg(m_cursor.word, ios::beg);
+	m_buffer.read(m_uCopyWord,WORD_SIZE); // read 4 nibbles, or 2 bytes
 }
 
-void HexIt::cmdFindByte()
+void HexIt::cmdFindWord()
 {
 
 }
@@ -840,12 +917,17 @@ void HexIt::cmdFillWord()
 
 void HexIt::cmdInsertWord()
 {
-	m_uInsertWord++;
+	updateByteCountWidth(); // just in case
 }
 
-void HexIt::cmdInsertWordAt()
+void HexIt::cmdSetCursorWordAt()
 {
+	// ask user for position
+	stringstream output;
+	output << "Please Enter a Word Position: \n[Default: " << getCaseFunction() << hex << m_cursor.word << "] ";
+	renderCommand(output.str());
 
+	//
 }
 
 void HexIt::cmdOutputFile()
@@ -863,23 +945,18 @@ void HexIt::cmdCloseFile()
 
 }
 
-void HexIt::cmdPageUp()
+void HexIt::cmdPasteWord()
 {
+	// enter "edit mode" so that we store a backup of the cursor location
+	toggleEdit(true);
+
+	// now assign the editWord to be the copy byte
 
 }
 
-void HexIt::cmdPasteByte()
+
+void HexIt::ncursesInit()
 {
-
-}
-
-
-void HexIt::editInit()
-{
-	// let's init termkey now
-	m_tk = termkey_new(0, 0);
-	termkey_set_flags(m_tk, TERMKEY_FLAG_EINTR); // need this to respond to sigwinch
-
 	initscr();
 	raw();
 	noecho();
@@ -919,9 +996,33 @@ void HexIt::editInit()
 	}
 }
 
-void HexIt::editCleanup()
+void HexIt::termkeyInit()
 {
-    wclear(m_wTitleArea);
+	// let's init termkey now
+	m_tk = termkey_new(0, 0);
+	termkey_set_flags(m_tk, TERMKEY_FLAG_EINTR); // need this to respond to sigwinch
+}
+
+void HexIt::editInit()
+{
+	updateByteCountWidth();
+	termkeyInit();
+	ncursesInit();
+}
+
+void HexIt::termkeyCleanup()
+{
+	// delete termkey object!
+	if( m_tk )
+	{
+		termkey_destroy(m_tk);
+		m_tk = NULL;
+	}
+}
+
+void HexIt::ncursesCleanup()
+{
+	wclear(m_wTitleArea);
     wclear(m_wEditArea);
     wclear(m_wStatusArea);
     wclear(m_wCommandArea);
@@ -934,12 +1035,11 @@ void HexIt::editCleanup()
     clear();
     refresh();
 	endwin();
-
-	// delete termkey object!
-	if( m_tk )
-	{
-		termkey_destroy(m_tk);
-		m_tk = NULL;
-	}
-    
 }
+
+void HexIt::editCleanup()
+{
+	ncursesCleanup();
+    termkeyCleanup();
+}
+/////

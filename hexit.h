@@ -78,7 +78,10 @@ private:
     bool m_bShowByteCount;
     bool m_bShowASCII;
     uint m_uInsertWord;
-    
+    uint m_uByteCountWidth;
+    byte m_uFillWord[2];
+    byte m_uCopyWord[2];
+
 	Cursor m_cursor;
 
 	// ncurses stuff
@@ -92,6 +95,8 @@ private:
 	case_fptr getCaseFunction();
 
 	// render one line of output!
+	void renderStatus(const string& message, uint y=0, uint x=0);
+	void renderCommand(const string& message, uint y=0, uint x=0);
 	void renderLine(ostream& output, uint start_byte, char* byte_seq, uint bytes_read);
 	void renderScreen();		 						// render the entire screen buffer!
 	void textColor(uint byte_pos, char byte_data);	 			// set color of cursor byte to be red
@@ -104,7 +109,9 @@ private:
 	void moveCursor(int x, int y);									// this sets up directional input
 	void moveNibble(int x);
 	uint maxFilePos();												// don't let the user scroll past the end
-
+	void updateByteCountWidth();
+    uint getByteCountWidth();
+    
 	// Editing of the file
 	void toggleEdit(bool save=true);
 	void editKey(uint nibble);										// user input of hex nibbles
@@ -113,19 +120,24 @@ private:
 	
 	// Input Commands
 	void cmdPageDn();
-	void cmdCopyByte();
+	void cmdCopyWord();
 	void cmdFillWord();
-	void cmdFindByte();
+	void cmdFindWord();
 	void cmdInsertWord();
-	void cmdInsertWordAt();
+	void cmdSetCursorWordAt();
 	void cmdOutputFile();
 	void cmdCursorWord();
 	void cmdCloseFile();
 	void cmdPageUp();
-	void cmdPasteByte();
+	void cmdPasteWord();
 
-	// 
+	//
+	void ncursesInit();
+	void termkeyInit();
 	void editInit();
+
+	void ncursesCleanup();
+	void termkeyCleanup();
 	void editCleanup();
 
 };
