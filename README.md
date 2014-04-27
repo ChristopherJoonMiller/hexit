@@ -1,6 +1,6 @@
 # HexIt
 
-HexIt is a Hex Editor written in C++ using the ncruses and termkey libraries.
+HexIt is a Hex Editor written in C++ using the ncurses and termkey libraries.
 
 On OSX these can both be installed with brew:
 > brew install ncurses

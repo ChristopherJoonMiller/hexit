@@ -26,7 +26,7 @@ void usage()
 int main(int argc, char *argv[])
 {
     char a;
-    cin >> a; // wait for debugger
+    //cin >> a; // wait for debugger
     
 	uint switches = 0;
     uint default_on = (SWITCH_EDIT | SWITCH_UPPER | SWITCH_SHOW_BYTE_COUNT | SWITCH_SHOW_ASCII | SWITCH_COLOR);
