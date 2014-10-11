@@ -3,6 +3,7 @@
 HexIt is a Hex Editor written in C++ using the ncurses and termkey libraries.
 
 On OSX these can both be installed with brew:
+> brew tap homebrew/dupes
 > brew install ncurses
 
 > brew install libtermkey
